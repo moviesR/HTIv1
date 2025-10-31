@@ -50,11 +50,33 @@ class EventPackAssembler:
         self._meta_provider = meta_provider
 
     def assemble(self, trigger_t: float, discrepancies: List[str] | None = None, adapter: Dict[str, Any] | None = None,
-                 outcome: Dict[str, Any] | None = None) -> EventPack:
+                 outcome: Dict[str, Any] | None = None, counters: Dict[str, int] | None = None,
+                 env_meta: Dict[str, Any] | None = None, risk: Dict[str, float] | None = None) -> EventPack:
+        """
+        Assemble EventPack with optional counters, env metadata, and risk fields.
+
+        Args:
+            trigger_t: Trigger time for ±300ms window
+            discrepancies: List of discrepancy types
+            adapter: AdapterDelta info
+            outcome: Task outcome info
+            counters: {"abstain": int, "veto": int, "ttl_expired": int}
+            env_meta: {"backend": str, "dt": float, "substeps": int}
+            risk: {"U": float, "H": float, "r": float}
+        """
         t0 = trigger_t - WINDOW_S
         t1 = trigger_t + WINDOW_S
         sigs = self._ring.window(t0, t1)
         meta = self._meta_provider()
+
+        # Merge in optional fields
+        if counters is not None:
+            meta["counters"] = counters
+        if env_meta is not None:
+            meta["env"] = env_meta
+        if risk is not None:
+            meta["risk"] = risk
+
         return EventPack(
             t0=t0,
             t1=t1,
