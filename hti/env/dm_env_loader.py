@@ -10,6 +10,14 @@ NullEnv: Synthetic, deterministic env for CI/tests.
 DmControlEnv: (Later) Real MuJoCo env when assets are added.
 """
 
+# Guarded dm_control import
+_DM_CONTROL_AVAILABLE = False
+try:
+    import dm_control
+    _DM_CONTROL_AVAILABLE = True
+except ImportError:
+    pass
+
 class BaseEnv:
     """Minimal interface HTI relies on (no dm_control dependency in tests)."""
     def reset(self, seed: int) -> Dict[str, Any]: ...
@@ -52,11 +60,45 @@ class NullEnv(BaseEnv):
     def substeps(self) -> int:
         return self._substeps
 
+# Conditionally define DmControlEnv only if dm_control is available
+if _DM_CONTROL_AVAILABLE:
+    @dataclass
+    class DmControlEnv(BaseEnv):
+        """
+        Real MuJoCo environment using dm_control.
+        Stub: not yet wired to assets. Placeholder for future integration.
+        """
+        _dt: float
+        _substeps: int
+        _task_name: str = "pnp_lift"
+
+        def reset(self, seed: int) -> Dict[str, Any]:
+            # TODO: wire to dm_control.Suite when assets land
+            raise NotImplementedError("DmControlEnv requires assets (not yet added)")
+
+        def step(self, action: Dict[str, float]) -> Tuple[Dict[str, Any], bool, Dict[str, Any]]:
+            raise NotImplementedError("DmControlEnv requires assets (not yet added)")
+
+        @property
+        def dt(self) -> float:
+            return self._dt
+
+        @property
+        def substeps(self) -> int:
+            return self._substeps
+
 def load_from_config(cfg) -> BaseEnv:
     """
     Load environment from HTI config.
-    For now always return NullEnv; later: detect presence of assets and return DmControlEnv.
+    Returns DmControlEnv if cfg.env.backend == "DmControlEnv" and dm_control is available.
+    Otherwise returns NullEnv (deterministic fallback for CI/tests).
     """
+    backend = cfg.env.backend if hasattr(cfg, 'env') and cfg.env else "NullEnv"
+
+    if backend == "DmControlEnv" and _DM_CONTROL_AVAILABLE:
+        return DmControlEnv(_dt=cfg.physics.dt, _substeps=cfg.physics.substeps)
+
+    # Default/fallback: NullEnv
     return NullEnv(_dt=cfg.physics.dt, _substeps=cfg.physics.substeps)
 
 # Legacy compatibility
