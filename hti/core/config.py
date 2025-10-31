@@ -66,6 +66,13 @@ class AcceptanceCfg(BaseModel):
     pnp: Optional[Dict[str, Any]] = None
     insertion: Optional[Dict[str, Any]] = None
 
+class RiskCfg(BaseModel):
+    tau: float = 0.25
+    uncertainty_stub: float = 0.20
+
+class EnvCfg(BaseModel):
+    backend: str = "NullEnv"
+
 class SystemSlice(BaseModel):
     engine: str
     physics: PhysicsCfg
@@ -78,6 +85,8 @@ class SystemSlice(BaseModel):
     sensors: Optional[Dict[str, Any]] = None
     logging: Optional[Dict[str, Any]] = None
     acceptance: Optional[AcceptanceCfg] = None
+    risk: Optional[RiskCfg] = None
+    env: Optional[EnvCfg] = None
 
     @field_validator("engine")
     @classmethod

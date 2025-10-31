@@ -106,6 +106,21 @@
         }
       },
       "additionalProperties": true
+    },
+    "risk": {
+      "type": "object",
+      "properties": {
+        "tau": { "type": "number" },
+        "uncertainty_stub": { "type": "number" }
+      },
+      "additionalProperties": true
+    },
+    "env": {
+      "type": "object",
+      "properties": {
+        "backend": { "type": "string", "enum": ["NullEnv", "DmControlEnv"] }
+      },
+      "additionalProperties": true
     }
   }
 }
