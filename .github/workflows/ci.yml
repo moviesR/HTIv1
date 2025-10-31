@@ -27,7 +27,7 @@ jobs:
 
       - name: Validate System Slice (schema + physics_hash)
         run: |
-          python tools/validate_system_slice.py configs/system_slice.yaml schemas/system_slice.schema.json
+          python tools/validate_system_slice.py configs/system_slice.yaml schemas/system_slice.schema.json --strict
 
       - name: Run tests
         run: |

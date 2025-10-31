@@ -5,13 +5,13 @@ physics:
   dt: 0.005            # @100 Hz (Reflex each step) — sim-time stepping
   substeps: 1
   solver: PGS
-  tol: 1e-6
+  tol: 0.000001
   contact_margin: 0.001
 
 seeds:
   sim_seed: 1337
   config_hash: "$GIT_SHA"
-  physics_hash: "<FILL_ME>"   # Run validator once to print the value, then paste here.
+  physics_hash: "0099d6b12134"
 
 robot:
   type: "UR5e_like"
@@ -67,4 +67,4 @@ randomization:
 acceptance:
   timing:   { soak_min: 10, p99_under_caps: true, missed_cycles: 0 }
   pnp:      { median_TTR_ms_le: 400, cap_hits: 0, trials: 50 }
-  insertion:{ chamfered_success_ge: 0.70, tight_success_ge: 0.40, overforce_exceedances: 0 }
+  insertion: { chamfered_success_ge: 0.70, tight_success_ge: 0.40, overforce_exceedances: 0 }
