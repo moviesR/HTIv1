@@ -1,0 +1,68 @@
+<mujoco model="minimal_world">
+  <!--
+    Minimal placeholder MJCF for HTI dm_control wiring.
+
+    This is NOT the final UR5e model - just a scaffold to prove:
+    1. DmControlEnv can load/step MuJoCo physics
+    2. HTI observations (poseEE, Fn, Ft, contact_flags) extract correctly
+    3. Command shape {"v_cap": ...} drives kinematics
+
+    Units: MKS (meters, kg, seconds, Newtons)
+    Next: Replace with full UR5e + worn parallel gripper MJCF
+  -->
+
+  <compiler angle="radian" coordinate="local" inertiafromgeom="auto"/>
+
+  <option timestep="0.002" iterations="50" solver="Newton" tolerance="1e-10">
+    <flag warmstart="enable" contact="enable"/>
+  </option>
+
+  <size njmax="500" nconmax="100"/>
+
+  <default>
+    <geom friction="0.7 0.005 0.0001" condim="4" contype="1" conaffinity="1"/>
+    <joint limited="false" damping="0.1"/>
+  </default>
+
+  <asset>
+    <texture name="grid" type="2d" builtin="checker" width="512" height="512"
+             rgb1="0.2 0.2 0.2" rgb2="0.3 0.3 0.3"/>
+    <material name="grid_mat" texture="grid" texrepeat="1 1" texuniform="true" reflectance="0.1"/>
+    <material name="table_mat" rgba="0.6 0.5 0.4 1.0"/>
+    <material name="ee_mat" rgba="0.8 0.3 0.1 1.0"/>
+  </asset>
+
+  <worldbody>
+    <!-- Ground plane -->
+    <geom name="ground" type="plane" size="2 2 0.1" material="grid_mat" contype="1" conaffinity="1"/>
+
+    <!-- Table: 0.8m x 0.6m x 0.05m thick, top at z=0.7m -->
+    <body name="table" pos="0 0 0.675">
+      <geom name="table_top" type="box" size="0.4 0.3 0.025" material="table_mat"
+            contype="1" conaffinity="1" mass="10.0"/>
+    </body>
+
+    <!-- End-effector: free-floating body with mocap control for kinematic placeholder -->
+    <body name="ee" pos="0 0 0.72" mocap="true">
+      <!-- Small cylindrical EE proxy (5cm diameter, 3cm height) -->
+      <geom name="ee_tip" type="cylinder" size="0.025 0.015"
+            material="ee_mat" contype="1" conaffinity="1" mass="0.5"/>
+
+      <!-- Sensor site for precise pose queries -->
+      <site name="ee_site" pos="0 0 0" size="0.005"/>
+    </body>
+  </worldbody>
+
+  <sensor>
+    <!-- Position sensor for EE -->
+    <framepos name="ee_pos" objtype="site" objname="ee_site"/>
+
+    <!-- Contact force sensor -->
+    <touch name="ee_contact" site="ee_site"/>
+  </sensor>
+
+  <actuator>
+    <!-- Mocap actuator for kinematic control (placeholder for real robot actuation) -->
+  </actuator>
+
+</mujoco>

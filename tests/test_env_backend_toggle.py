@@ -14,7 +14,7 @@ def test_backend_flag_nullenv():
 def test_backend_flag_dmcontrol_fallback():
     """
     Verify that backend='DmControlEnv' falls back to NullEnv if dm_control unavailable.
-    If dm_control IS available, we get DmControlEnv (but it raises NotImplementedError on use).
+    If dm_control IS available, we get DmControlEnv and can reset/step.
     """
     cfg = load_system_slice("configs/system_slice.yaml")
 
@@ -32,3 +32,24 @@ def test_backend_flag_dmcontrol_fallback():
         assert type(env).__name__ == "DmControlEnv"
         assert env.dt == cfg.physics.dt
         assert env.substeps == cfg.physics.substeps
+
+        # Test reset returns correct keys
+        obs = env.reset(seed=42)
+        assert "poseEE" in obs
+        assert "Fn" in obs
+        assert "Ft" in obs
+        assert "contact_flags" in obs
+        assert len(obs["poseEE"]) == 3
+        assert isinstance(obs["Fn"], (int, float))
+        assert isinstance(obs["Ft"], (int, float))
+        assert obs["contact_flags"] in (0, 1)
+
+        # Test step returns correct structure
+        action = {"v_cap": 0.01}
+        obs, done, info = env.step(action)
+        assert "poseEE" in obs
+        assert "Fn" in obs
+        assert "Ft" in obs
+        assert "contact_flags" in obs
+        assert isinstance(done, bool)
+        assert "t" in info
