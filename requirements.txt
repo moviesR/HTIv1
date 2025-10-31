@@ -1,0 +1,29 @@
+# ---- Core simulator pins ----
+mujoco==3.3.6
+
+# Prefer a wheel; if none matches your platform/MuJoCo pin, see the build note below.
+dm-control>=1.0,<2.0
+
+# ---- Core libs ----
+numpy>=1.26
+pydantic>=2.8
+jsonschema>=4.23
+pytest>=8.2
+
+# ---- Optional (enable later as needed) ----
+# xgboost>=2.0          # M0+ surrogate
+# scikit-learn>=1.4     # metrics & baselines
+# matplotlib>=3.8       # quick plots in the evidence dossier
+
+# ---- Build note: dm_control from source (use only if wheel unavailable) ----
+# Ensure MuJoCo 3.3.6 is installed first:
+#   pip install mujoco==3.3.6
+# Then either:
+#   pip install --no-binary dm-control dm-control
+# or build from a specific git tag/commit known to support MuJoCo 3.x:
+#   pip install --no-binary dm-control "git+https://github.com/deepmind/dm_control@<tag>"
+# (Replace <tag> with a recent release tag if main is too new.)
+#
+# Headless runs:
+#   export MUJOCO_GL=egl
+# Linux build prereqs: a C/C++ toolchain (gcc/g++), Python headers.
