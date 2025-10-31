@@ -1,0 +1,70 @@
+# System Slice SSOT (TEMPLATE) — copy to system_slice.yaml and fill
+engine: mujoco-3.3.6
+
+physics:
+  dt: 0.005            # @100 Hz (Reflex each step)
+  substeps: 1
+  solver: PGS
+  tol: 1e-6
+  contact_margin: 0.001
+
+seeds:
+  sim_seed: 1337
+  config_hash: "$GIT_SHA"    # filled by CI or your tooling
+  physics_hash: "<FILL_ME>"  # run validator once and paste here
+
+robot:
+  type: "UR5e_like"
+  gripper: "parallel_worn"
+  backlash_deg: [0, 0.2, 0.5]
+  mu_nom: 0.6
+  wear_mu_scale: [0.7, 1.0]
+
+bands:
+  reflex_hz: 100
+  control_hz: 50
+  predict_hz: 20-50
+  semantics_hz: 1-5
+
+caps:
+  v_mps: 0.25
+  a_mps2: 1.0
+  jerk_mps3: 5.0
+  fn_N: 12
+  tau_Nm: 6
+
+tasks:
+  PnP_smoke:
+    objs: "cube/sphere × rubber/plastic"
+    pos_jitter_m: 0.03
+    yaw_deg: 10
+  Insertion:
+    tight: { peg_mm: 10.00, hole_mm: 10.05 }
+    chamfered: { peg_mm: 12.00, hole_mm: 12.20 }
+    init_error: { lateral_mm: 0.5, angular_deg: 1.0 }
+
+sensors:
+  msg: [q, dq, i_motor, tau_est, poseEE, contact_flag]
+  optional: [wrist_ft, tactile, contact_mic, depth]
+
+logging:
+  proprio_hz: 100
+  predict_hz: "native"
+  video_hz: 30
+
+probes:
+  ttl_ms: 300
+  max_before_action: 2
+  refractory_ms: 150
+  dither_hz: [5, 12]
+
+randomization:
+  motor_lag_ms: [0, 8, 15]
+  table_mu: [0.3, 0.6, 0.9]
+  tol_mm_jitter: 0.02
+  control_jitter_ms: 0.5
+
+acceptance:
+  timing:   { soak_min: 10, p99_under_caps: true, missed_cycles: 0 }
+  pnp:      { median_TTR_ms_le: 400, cap_hits: 0, trials: 50 }
+  insertion:{ chamfered_success_ge: 0.70, tight_success_ge: 0.40, overforce_exceedances: 0 }
