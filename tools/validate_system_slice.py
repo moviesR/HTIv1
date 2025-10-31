@@ -30,9 +30,38 @@ def _canon(obj) -> bytes:
     return json.dumps(obj, sort_keys=True, separators=(",", ":")).encode("utf-8")
 
 
-def compute_physics_hash(physics_dict: dict) -> str:
-    """12-char SHA256 digest of canonicalized physics dict."""
-    return hashlib.sha256(_canon(physics_dict)).hexdigest()[:12]
+def compute_geometry_hash(assets_dir: Path) -> str | None:
+    """
+    Compute deterministic hash of all .xml files in assets directory.
+    Returns None if directory doesn't exist or has no .xml files.
+    """
+    if not assets_dir.exists():
+        return None
+
+    xml_files = sorted(assets_dir.glob("*.xml"))
+    if not xml_files:
+        return None
+
+    hasher = hashlib.sha256()
+    for xml_path in xml_files:
+        # Include filename and content for determinism
+        hasher.update(xml_path.name.encode("utf-8"))
+        hasher.update(xml_path.read_bytes())
+
+    return hasher.hexdigest()[:12]
+
+
+def compute_physics_hash(physics_dict: dict, geometry_hash: str | None = None) -> str:
+    """
+    12-char SHA256 digest of canonicalized physics dict.
+    If geometry_hash is provided, it's included in the digest.
+    """
+    if geometry_hash:
+        # Combine physics config + geometry hash
+        combined = {"physics": physics_dict, "geometry": geometry_hash}
+        return hashlib.sha256(_canon(combined)).hexdigest()[:12]
+    else:
+        return hashlib.sha256(_canon(physics_dict)).hexdigest()[:12]
 
 
 def main() -> int:
@@ -65,9 +94,21 @@ def main() -> int:
         return 1
     print("[validator] schema: OK")
 
-    # Physics hash check
+    # Physics hash check (include geometry hash if backend is DmControlEnv)
     physics = cfg.get("physics", {})
-    computed = compute_physics_hash(physics)
+    env_cfg = cfg.get("env", {})
+    backend = env_cfg.get("backend", "NullEnv")
+
+    geometry_hash = None
+    if backend == "DmControlEnv":
+        assets_dir = args.config_path.parent.parent / "hti" / "env" / "assets"
+        geometry_hash = compute_geometry_hash(assets_dir)
+        if geometry_hash:
+            print(f"[validator] geometry_hash = {geometry_hash} (from {assets_dir})")
+        else:
+            print(f"[validator] note: DmControlEnv backend but no assets found in {assets_dir}")
+
+    computed = compute_physics_hash(physics, geometry_hash)
     seeds = cfg.get("seeds", {})
     configured = seeds.get("physics_hash", "")
 
