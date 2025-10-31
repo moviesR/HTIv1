@@ -1,38 +1,50 @@
-# HTI-Adapter Harness (dm_control-primary)
+# HTI-Adapter Harness (dm_control primary)
 
-**Make robots learn without breaking things.**
 Translate high-level intent into **bounded, verifiable control deltas** under hard real-time guarantees — or **ABSTAIN** when risk is high.
 
-> **HTI = Hierarchical Temporal Intelligence**
-> Fast safety/control (100–50 Hz) is strictly separated from slower fusion/semantics (10–1 Hz). The **Safety Shield** is last-writer before actuators.
+> **HTI = Hierarchical Temporal Intelligence.**
+> Fast safety/control (100–50 Hz) is strictly separated from slower fusion/semantics (10–1 Hz). A **Safety Shield** is the last writer before actuators.
+
+---
+
+## What this repo is
+
+* **Adapter harness** that enforces timing, safety, and audit guarantees for manipulation in simulation.
+* **M0 scope:** sim-only, UR5-class arm with worn two-finger gripper (MuJoCo), pick-and-place + insertion tasks, fixed caps, and CI-enforced contracts.
 
 ---
 
 ## Environment stance
 
 * **Primary:** **Manipulator-MuJoCo (dm_control template)** on **MuJoCo 3.3.6**
-  Precise step control, low overhead, clean access to contact/forces → perfect for HTI timing, event-packs, and probe hygiene.
+  Precise step control, low overhead, clean access to contacts/forces → ideal for HTI timing, event-packs, and probe hygiene.
 * **Sidecar (later):** **robosuite** for cross-paper benchmarks/demos after HTI-M0 is green.
-* **Not now:** MuJoCo Playground/MJX (only if you later need large batched RL).
+* **Not now:** MuJoCo Playground / MJX (only if you later need large batched RL).
 
 ---
 
 ## Core guarantees (non-negotiables)
 
-* **Time bands (p99 ceilings):**
-  Reflex ~100 Hz (10 ms frame, WCET ≤ 2 ms, p99 ≤ 5 ms)
-  Control ~50 Hz (20 ms frame, WCET ≤ 6 ms, p99 ≤ 12 ms)
-  Predict/Fuse 10–50 Hz (**band p99 ≤ 60 ms**; per-module caps below)
-  Semantics 1–5 Hz (p99 ≤ 800 ms; shed first)
-  **Shield** (always): executes ≤ 1 ms before actuator write; **last-writer-wins**
+**Time bands (p99 ceilings & WCET caps)**
 
-* **Safety invariants**
+* **Reflex:** ~100 Hz (10 ms frame; **WCET ≤ 2 ms**, **p99 ≤ 5 ms**)
+* **Control:** ~50 Hz (20 ms frame; **WCET ≤ 6 ms**, **p99 ≤ 12 ms**)
+* **Predict/Fuse:** 10–50 Hz (**band total p99 ≤ 60 ms**; per-module caps below)
+* **Semantics:** 1–5 Hz (**p99 ≤ 800 ms**; shed first)
+* **Shield:** executes ≤ 1 ms before actuator write; **last-writer-wins**
 
-  * No inter-band locks; fast bands never wait for slow ones
-  * Monotonic clocks; CI fails on any deadline miss
-  * **Bounded adapters:** caps + **TTL ≤ 500 ms**, rollback ≤ 1 Control cycle
-  * **Calibration:** any probability touching Control must meet **ECE ≤ 0.07** (10 equal-mass bins) and **Brier ↓ ≥ 10%** vs uncalibrated
-  * **Abstain** outside support (OOD/conformal fail) or when **risk** (r = \text{uncertainty} \times \text{hazard}) ≥ τ (default **0.25**)
+**Safety invariants**
+
+* No inter-band locks; fast bands never wait for slow ones.
+* Monotonic clocks; **CI fails on any deadline miss**.
+* **Bounded adapters:** caps + **TTL ≤ 500 ms**, rollback ≤ 1 Control cycle.
+* **Calibration:** any probability touching Control must meet **ECE ≤ 0.07** (10 equal-mass bins) and **Brier ↓ ≥ 10%** vs uncalibrated.
+* **Abstain** outside support (OOD/conformal fail) or when **risk** exceeds τ.
+
+**Risk definition**
+
+* Plain: `risk = uncertainty × hazard`, default threshold `τ = 0.25`.
+* LaTeX: [ r = \text{uncertainty} \times \text{hazard},\quad \tau = 0.25 ]
 
 ---
 
@@ -85,7 +97,7 @@ pytest>=8.2
 ```bash
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-# If dm_control wheels for your OS/Python lag, build it against MuJoCo 3.3.6.
+# If dm_control wheels lag for your OS/Python, build against MuJoCo 3.3.6.
 ```
 
 **Run M0 loop (sim-time, fixed-step)**
@@ -101,11 +113,11 @@ python tools/validate_system_slice.py configs/system_slice.yaml schemas/system_s
 pytest -q --disable-warnings --maxfail=1
 ```
 
-> **Red blocks merges:** schema mismatch, physics hash drift, p99 over caps, missed cycles, probe/TTL violations, Shield not last-writer, or incorrect CVaR.
+**CI hard-fails on:** schema mismatch, physics-hash drift, p99 over caps, missed cycles, probe/TTL violations, Shield not last-writer, CVaR spec violations.
 
 ---
 
-## System Slice (SSOT)
+## M0 System Slice (SSOT)
 
 All runs are governed by `configs/system_slice.yaml`. Change it, or it didn’t happen.
 
@@ -135,7 +147,7 @@ acceptance:
   insertion:{ chamfered_success_ge: 0.70, tight_success_ge: 0.40, overforce_exceedances: 0 }
 ```
 
-Run the validator once; copy the printed `physics_hash` into the YAML. CI will fail if physics drifts.
+> Run the validator once and copy the printed `physics_hash` into the YAML. CI will fail if physics drifts.
 
 ---
 
@@ -143,7 +155,7 @@ Run the validator once; copy the printed `physics_hash` into the YAML. CI will f
 
 | Module                                      |                                   p99 cap |
 | ------------------------------------------- | ----------------------------------------: |
-| Surrogate (XGB/2-layer MLP ≤ 10k params)    |                                **≤ 2 ms** |
+| Surrogate (XGB / 2-layer MLP ≤ 10k params)  |                                **≤ 2 ms** |
 | OOD density + conformal residuals           |                                **≤ 2 ms** |
 | Slip/Contact estimator (tiny CNN/TCN ≤ 50k) |                                **≤ 4 ms** |
 | Ghost predictor (≤ 200k params)             |                                **≤ 8 ms** |
@@ -156,15 +168,17 @@ Run the validator once; copy the printed `physics_hash` into the YAML. CI will f
 
 ## Risk ladder & shedding
 
-[
-r = \text{uncertainty} \times \text{hazard}, \quad \tau = 0.25
-]
+* ( r = \text{uncertainty} \times \text{hazard},\quad \tau = 0.25 )
 
-* (r<0.10): baseline only
-* (0.10\le r<0.25): one light action (one surrogate **or** one micro-probe)
-* (0.25\le r<0.50): short-horizon forecast; **defer Semantics**
-* (r\ge0.50): **ABSTAIN or Shield-limit**; safety probes only
-  **Shed order:** Semantics → Predict extras → Predict core → (never shed Reflex/Control/Shield)
+* `r < 0.10`: baseline only
+
+* `0.10 ≤ r < 0.25`: one light action (one surrogate **or** one micro-probe)
+
+* `0.25 ≤ r < 0.50`: short-horizon forecast; **defer Semantics**
+
+* `r ≥ 0.50`: **ABSTAIN or Shield-limit**; safety probes only
+
+**Shed order:** Semantics → Predict extras → Predict core → *(never shed Reflex/Control/Shield)*
 
 ---
 
@@ -185,9 +199,17 @@ Fixed window **±300 ms** around event/probe. Required fields include:
 
 ---
 
+## OOD & health
+
+* Conformal / density OOD on Predict, abstain on fail.
+* Promote sensors to **advisory-only** on calibration expiry or novelty spikes.
+* CI includes timing soaks and probe hygiene to prevent drift.
+
+---
+
 ## Benchmarks (later)
 
-* **robosuite** tasks (e.g., pick-place, door) imported as **external benchmarks** once M0 is green. They do **not** drive your HTI timing/tests.
+* **robosuite** tasks (e.g., pick-place, door) imported as **external benchmarks** once M0 is green. They do **not** drive HTI timing/tests.
 
 ---
 
@@ -201,6 +223,98 @@ Fixed window **±300 ms** around event/probe. Required fields include:
 
 MIT
 
----
+It’s strong—clean, aligned with the dm_control pivot, and it keeps the HTI contract front-and-center. I’d ship it with a few surgical tweaks so new contributors don’t miss critical steps and the safety gates are fully executable.
 
-If you want this as a PR-ready patch instead, I can format it as a unified diff against your current README.
+# High-impact tweaks (succinct)
+
+1. **Pin physics explicitly in Quickstart:** add the “compute & paste `physics_hash`” step so CI won’t false-fail.
+2. **Headless dm_control note:** tell folks to set `MUJOCO_GL=egl` (or `osmesa`) to avoid GL issues on servers.
+3. **Make the risk formula render everywhere:** use a code fence instead of pseudo-LaTeX in Markdown.
+4. **Lock OOD/conformal thresholds:** add typical M0 numbers (`θ_s=0.6`, `θ_f=0.2`, `α=0.1`) so “OOD & health” is actionable.
+5. **Anchor loop rates to sim step:** state that dt=0.005 → Reflex each step (100 Hz), Control every 2 steps (50 Hz).
+6. **Mention BO budget explicitly:** keep `≤40 ms/s` and `≤8 proposals/episode` with the table (you already have it; I just mirrored it into prose under Predict/Fuse).
+7. **Tiny copy nit:** “dm_control primary” → “dm_control-primary” for title consistency.
+8. **Add a one-liner about no inter-band locks in Contributing:** prevents “helpful” async awaits.
+
+````diff
+@@
+-# HTI-Adapter Harness (dm_control primary)
++# HTI-Adapter Harness (dm_control-primary)
+@@
+ **Run M0 loop (sim-time, fixed-step)**
+ 
+ ```bash
+ python main_dm_control.py  # uses hti/env/assets/ur5e_parallel_worn.xml
+````
+
+-**Validate System Slice & run CI tests locally**
++**Validate System Slice & run CI tests locally**
+
+```bash
+python tools/validate_system_slice.py configs/system_slice.yaml schemas/system_slice.schema.json
+pytest -q --disable-warnings --maxfail=1
+```
+
+-**CI hard-fails on:** schema mismatch, physics-hash drift, p99 over caps, missed cycles, probe/TTL violations, Shield not last-writer, CVaR spec violations.
++> First run will print a `physics_hash`. Paste that value into `seeds.physics_hash` in `configs/system_slice.yaml`, re-run the validator, then run tests.
++
++**CI hard-fails on:** schema mismatch, physics-hash drift, p99 over caps, missed cycles, probe/TTL violations, Shield not last-writer, CVaR spec violations.
++
++**Headless tip:** set `MUJOCO_GL=egl` (or `osmesa`) when running on servers without a display:
++`export MUJOCO_GL=egl`
+@@
+-**Key fields (dm_control-tuned)**
++**Key fields (dm_control-tuned)**
+
+```yaml
+engine: mujoco-3.3.6
+physics: { dt: 0.005, substeps: 1, solver: PGS, tol: 1e-6, contact_margin: 0.001 }
+@@
+```
+
+-> Run the validator once and copy the printed `physics_hash` into the YAML. CI will fail if physics drifts.
++> Run the validator once and copy the printed `physics_hash` into the YAML. CI will fail if physics drifts.
++
++**Rate anchoring:** with `dt=0.005` and `substeps=1`, **Reflex** runs every step (**100 Hz**), **Control** every 2 steps (**50 Hz**). No wall-clock sleeps; timing is sim-time.
+@@
+-## Risk ladder & shedding
+--------------------------
+
+-* ( r = \text{uncertainty} \times \text{hazard},\quad \tau = 0.25 )
++## Risk ladder & shedding
++
++`
++risk = uncertainty × hazard
++τ = 0.25
++`
+@@
+**Shed order:** Semantics → Predict extras → Predict core → *(never shed Reflex/Control/Shield)*
+@@
+
+## EventPack (audit log)
+
+@@
+
+## OOD & health
+
+-* Conformal / density OOD on Predict, abstain on fail.
++* Conformal / density OOD on Predict, abstain on fail. Permit adaptation only if **Success LB ≥ θ_s** and **Over-force UB ≤ θ_f** with miscoverage ≤ **α+2%** on a hold-out split.
+
+* * **M0 defaults:** `θ_s = 0.6`, `θ_f = 0.2`, `α = 0.10`
+
+- Promote sensors to **advisory-only** on calibration expiry or novelty spikes.
+- CI includes timing soaks and probe hygiene to prevent drift.
+
+````
+
+# Optional “Contributing” stub (prevents timing regressions)
+Drop this at the end if you want:
+
+```md
+## Contributing
+
+- No inter-band locks. Do not `await` or block Control/Reflex on Predict/Fuse or Semantics.
+- Keep fast paths allocation-free and deterministic.
+- Any module that influences Control with probabilities must ship calibration (ECE ≤ 0.07, Brier ↓ ≥ 10%).
+- Changes to physics, caps, or probes must update `configs/system_slice.yaml` and pass schema + physics_hash validation.
+````
