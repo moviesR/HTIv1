@@ -72,8 +72,17 @@ def main():
     ring = RingBuffer(maxlen=512)
     sampler = Sampler(ring, clk.now)
 
-    # Create EventPack assembler
-    ep_asm = EventPackAssembler(ring, clk.now)
+    # Create EventPack assembler with signals_quality metadata
+    def meta_provider():
+        return {
+            "config_hash": cfg.seeds.config_hash,
+            "physics_hash": cfg.seeds.physics_hash,
+            "signals_quality": {
+                "contacts": "placeholder"  # Until UR5 contacts are real
+            }
+        }
+
+    ep_asm = EventPackAssembler(ring, meta_provider)
 
     # Create RiskGate
     risk_gate = RiskGate(tau=cfg.risk.tau, uncertainty_stub=cfg.risk.uncertainty_stub)
@@ -104,13 +113,14 @@ def main():
             return
 
         # Get current observation (from last step)
-        obs_samples = ring.get_window(-0.01, 0.01)  # tiny window to get latest
+        now = clk.now()
+        obs_samples = ring.window(now - 0.01, now + 0.01)  # tiny window to get latest
         if not obs_samples:
             # First step: use reset obs
             obs = env.reset(seed=cfg.seeds.sim_seed)
         else:
-            # Use latest observation payload
-            _, obs = obs_samples[-1]
+            # Use latest observation (dict includes 't' key from window())
+            obs = {k: v for k, v in obs_samples[-1].items() if k != 't'}
 
         # RiskGate evaluation
         risk_decision = risk_gate.decide(obs, baseline_cmd, caps)
@@ -145,10 +155,14 @@ def main():
     time.sleep(args.duration)
     sched.stop()
 
-    # Detect success and TTR
+    # Detect success and TTR (relative to initial height)
     print(f"[run_pnp_smoke_dm] Collected {len(poses)} poses")
-    success = detect_lift_success(poses, z0=0.02, dz=0.03)
-    ttr_val = ttr_ms(poses, dt=env.dt, z0=0.02, dz=0.03)
+
+    # Get z0 from first pose for relative lift detection
+    z0 = poses[0][2] if poses else 0.02
+
+    success = detect_lift_success(poses, z0=z0, dz=0.03)
+    ttr_val = ttr_ms(poses, dt=env.dt, z0=z0, dz=0.03)
 
     print(f"[run_pnp_smoke_dm] Backend: {type(env).__name__}")
     print(f"[run_pnp_smoke_dm] Samples: {len(poses)}")
@@ -166,9 +180,10 @@ def main():
         }
 
         # Get latest risk assessment
-        obs_samples = ring.get_window(-0.01, 0.01)
+        now_final = clk.now()
+        obs_samples = ring.window(now_final - 0.01, now_final + 0.01)
         if obs_samples:
-            _, obs = obs_samples[-1]
+            obs = {k: v for k, v in obs_samples[-1].items() if k != 't'}
             risk_decision = risk_gate.decide(obs, baseline_cmd, caps)
             risk_meta = {
                 "U": risk_decision["U"],

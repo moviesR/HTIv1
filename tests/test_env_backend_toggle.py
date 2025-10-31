@@ -13,13 +13,14 @@ def test_backend_flag_nullenv():
 
 def test_backend_flag_dmcontrol_fallback():
     """
-    Verify that backend='DmControlEnv' falls back to NullEnv if dm_control unavailable.
-    If dm_control IS available, we get DmControlEnv and can reset/step.
+    Verify that backend='DmControlEnv' falls back to NullEnv if dm_control unavailable
+    and fail_fast=False. If dm_control IS available, we get DmControlEnv and can reset/step.
     """
     cfg = load_system_slice("configs/system_slice.yaml")
 
-    # Temporarily override backend
+    # Temporarily override backend and disable fail_fast to test fallback
     cfg.env.backend = "DmControlEnv"
+    cfg.env.fail_fast = False  # Allow fallback for this test
 
     env = load_from_config(cfg)
 

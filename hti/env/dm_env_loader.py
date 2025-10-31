@@ -128,6 +128,7 @@ if _DM_CONTROL_AVAILABLE:
                 self._ee_mocap_id = self._physics.model.name2id("ee", "body")  # mocap body
                 self._t = 0.0
                 self._z_target = 0.72  # Initial EE z position (matches MJCF)
+                self._z_initial = 0.72  # Store initial height for relative lift detection
             except Exception as e:
                 _logger.error(f"Failed to load MJCF from {mjcf_path}: {e}")
                 raise
@@ -178,8 +179,9 @@ if _DM_CONTROL_AVAILABLE:
             # Extract observation
             obs = _extract_obs(self._physics, self._ee_body_id)
 
-            # Check done condition (same as NullEnv: lifted above threshold)
-            done = obs["poseEE"][2] >= 0.08
+            # Check done condition: lifted 6cm (0.06m) above initial height
+            # This is relative lift, compatible with success detector
+            done = obs["poseEE"][2] >= (self._z_initial + 0.06)
 
             info = {"t": self._t}
 
@@ -196,25 +198,58 @@ if _DM_CONTROL_AVAILABLE:
 def load_from_config(cfg) -> BaseEnv:
     """
     Load environment from HTI config.
-    Returns DmControlEnv if cfg.env.backend == "DmControlEnv" and dm_control is available.
-    Otherwise returns NullEnv (deterministic fallback for CI/tests).
 
-    Gracefully falls back to NullEnv if assets are missing or unloadable.
+    If cfg.env.fail_fast is True:
+        - Raises RuntimeError if DmControlEnv requested but dm_control unavailable
+        - Raises FileNotFoundError if assets are missing
+        - Propagates all exceptions from DmControlEnv initialization
+
+    If cfg.env.fail_fast is False:
+        - Falls back to NullEnv with warning if dm_control/assets unavailable
+
+    Always returns NullEnv if backend is "NullEnv".
     """
     backend = cfg.env.backend if hasattr(cfg, 'env') and cfg.env else "NullEnv"
+    fail_fast = cfg.env.fail_fast if hasattr(cfg, 'env') and cfg.env and hasattr(cfg.env, 'fail_fast') else True
 
-    if backend == "DmControlEnv" and _DM_CONTROL_AVAILABLE:
-        # Find asset path relative to this module
+    # NullEnv backend: always works
+    if backend == "NullEnv":
+        return NullEnv(_dt=cfg.physics.dt, _substeps=cfg.physics.substeps)
+
+    # DmControlEnv backend: check availability and fail-fast settings
+    if backend == "DmControlEnv":
+        # Check dm_control availability
+        if not _DM_CONTROL_AVAILABLE:
+            if fail_fast:
+                raise RuntimeError(
+                    f"Backend 'DmControlEnv' requested but dm_control not installed. "
+                    f"Install dm_control or change cfg.env.backend to 'NullEnv'."
+                )
+            else:
+                _logger.warning(
+                    f"DmControlEnv backend requested but dm_control not installed. "
+                    f"Falling back to NullEnv."
+                )
+                return NullEnv(_dt=cfg.physics.dt, _substeps=cfg.physics.substeps)
+
+        # Check asset file exists
         assets_dir = Path(__file__).parent / "assets"
         mjcf_path = assets_dir / "minimal_world.xml"
 
         if not mjcf_path.exists():
-            _logger.warning(
-                f"DmControlEnv backend requested but asset not found: {mjcf_path}. "
-                f"Falling back to NullEnv."
-            )
-            return NullEnv(_dt=cfg.physics.dt, _substeps=cfg.physics.substeps)
+            if fail_fast:
+                raise FileNotFoundError(
+                    f"DmControlEnv asset not found: {mjcf_path}. "
+                    f"Add asset or change backend to 'NullEnv'."
+                )
+            else:
+                _logger.warning(
+                    f"DmControlEnv backend requested but asset not found: {mjcf_path}. "
+                    f"Falling back to NullEnv."
+                )
+                return NullEnv(_dt=cfg.physics.dt, _substeps=cfg.physics.substeps)
 
+        # Try to load DmControlEnv
         try:
             return DmControlEnv(
                 mjcf_path=str(mjcf_path),
@@ -222,14 +257,18 @@ def load_from_config(cfg) -> BaseEnv:
                 substeps=cfg.physics.substeps
             )
         except Exception as e:
-            _logger.warning(
-                f"Failed to load DmControlEnv from {mjcf_path}: {e}. "
-                f"Falling back to NullEnv."
-            )
-            return NullEnv(_dt=cfg.physics.dt, _substeps=cfg.physics.substeps)
+            if fail_fast:
+                # Propagate exception - don't catch it
+                raise
+            else:
+                _logger.warning(
+                    f"Failed to load DmControlEnv from {mjcf_path}: {e}. "
+                    f"Falling back to NullEnv."
+                )
+                return NullEnv(_dt=cfg.physics.dt, _substeps=cfg.physics.substeps)
 
-    # Default/fallback: NullEnv
-    return NullEnv(_dt=cfg.physics.dt, _substeps=cfg.physics.substeps)
+    # Unknown backend
+    raise ValueError(f"Unknown backend: {backend}. Must be 'NullEnv' or 'DmControlEnv'.")
 
 # Legacy compatibility
 def make_env(config: Optional[Any] = None) -> Any:

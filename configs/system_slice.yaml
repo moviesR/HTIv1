@@ -75,3 +75,4 @@ risk:
 
 env:
   backend: "NullEnv"
+  fail_fast: true

@@ -72,6 +72,7 @@ class RiskCfg(BaseModel):
 
 class EnvCfg(BaseModel):
     backend: str = "NullEnv"
+    fail_fast: bool = True
 
 class SystemSlice(BaseModel):
     engine: str

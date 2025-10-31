@@ -118,7 +118,8 @@
     "env": {
       "type": "object",
       "properties": {
-        "backend": { "type": "string", "enum": ["NullEnv", "DmControlEnv"] }
+        "backend": { "type": "string", "enum": ["NullEnv", "DmControlEnv"] },
+        "fail_fast": { "type": "boolean" }
       },
       "additionalProperties": true
     }
