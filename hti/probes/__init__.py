@@ -12,3 +12,6 @@ class ProbeSpec:
     ttl_ms: int = 300
     refractory_ms: int = 150
     max_before_action: int = 2
+
+from .engine import ProbeEngine  # re-export
+__all__ = ["ProbeSpec", "ProbeEngine"]
