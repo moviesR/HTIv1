@@ -1,6 +1,7 @@
 from __future__ import annotations
 from functools import lru_cache
 from typing import Any, Dict, List, Optional, Tuple, Union
+import os
 
 import yaml
 from pydantic import BaseModel, Field, field_validator
@@ -103,7 +104,24 @@ def load_system_slice(path: str = "configs/system_slice.yaml") -> SystemSlice:
     """
     Load and type-validate the System Slice once.
     Do NOT call this from Reflex/Control hot paths; pass the object down.
+
+    Environment Variable Overrides:
+      - ENV_BACKEND: Override env.backend ("NullEnv" or "DmControlEnv")
+      - ENV_FAIL_FAST: Override env.fail_fast ("true" or "false")
     """
     with open(path, "r", encoding="utf-8") as f:
         data = yaml.safe_load(f)
+
+    # Apply environment variable overrides
+    if "ENV_BACKEND" in os.environ:
+        if "env" not in data:
+            data["env"] = {}
+        data["env"]["backend"] = os.environ["ENV_BACKEND"]
+
+    if "ENV_FAIL_FAST" in os.environ:
+        if "env" not in data:
+            data["env"] = {}
+        fail_fast_str = os.environ["ENV_FAIL_FAST"].lower()
+        data["env"]["fail_fast"] = fail_fast_str in ("true", "1", "yes")
+
     return SystemSlice.model_validate(data)

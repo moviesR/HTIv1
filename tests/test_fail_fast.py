@@ -32,17 +32,10 @@ def test_fail_fast_true_raises_when_asset_missing():
     cfg.env.backend = "DmControlEnv"
     cfg.env.fail_fast = True
 
-    # Mock asset path to non-existent file
-    with patch('hti.env.dm_env_loader.Path') as mock_path:
-        mock_path.return_value.parent = Path("/fake")
-        mock_path.return_value.parent.__truediv__ = lambda self, x: Path("/fake/assets")
-
-        fake_assets = Path("/fake/assets")
-        fake_mjcf = fake_assets / "minimal_world.xml"
-
-        with patch.object(Path, 'exists', return_value=False):
-            with pytest.raises(FileNotFoundError, match="asset not found"):
-                load_from_config(cfg)
+    # Mock the asset path existence check
+    with patch('hti.env.dm_env_loader.Path.exists', return_value=False):
+        with pytest.raises(FileNotFoundError, match="asset not found"):
+            load_from_config(cfg)
 
 
 def test_fail_fast_false_falls_back_to_nullenv():

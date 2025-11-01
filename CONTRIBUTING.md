@@ -23,6 +23,25 @@ Keep subjects ≤ 72 chars. Reference issues like `(#123)`.
   pytest -q --disable-warnings --maxfail=1
   ```
 
+## Environment Configuration
+
+### Backend Selection & Fail-Fast
+- **env.backend**: `"NullEnv"` (deterministic synthetic) or `"DmControlEnv"` (real MuJoCo physics)
+- **env.fail_fast**: `true` (default) → hard-error if dm_control/assets unavailable; `false` → fallback to NullEnv with warning
+
+### Environment Variable Overrides
+Override config without editing YAML:
+```bash
+export ENV_BACKEND="DmControlEnv"  # Override env.backend
+export ENV_FAIL_FAST="false"       # Override env.fail_fast
+```
+
+**No silent fallbacks when fail_fast=true:**
+- If `backend="DmControlEnv"` and `fail_fast=true`:
+  - RuntimeError if dm_control not installed
+  - FileNotFoundError if assets missing
+  - All exceptions propagate (no silent degradation)
+
 ## Performance/Timing Budgets (hard)
 
 ### Bands (p99 ceilings)
@@ -60,6 +79,12 @@ Keep subjects ≤ 72 chars. Reference issues like `(#123)`.
 
 ### EventPack
 - Fixed window **±300 ms** around event; required fields as in README (t0/t1, hashes, signals, caps, loop p50/p95/p99, risk, discrepancies, AdapterDelta?, ShieldVeto?, Outcome)
+- **signals_quality.contacts**: `"placeholder"` (until UR5 contacts real) or `"measured"`
+
+### Success/TTR Detection
+- **Relative lift**: Success and TTR measured from **initial pose z0**, not absolute z
+- Detects sustained lift ≥0.20s above threshold
+- Compatible with any starting height (NullEnv at z=0.02, DmControlEnv at z=0.72, etc.)
 
 ## Coding Norms (fast paths)
 - **No inter-band locks.** Fast bands never wait for slow ones.
