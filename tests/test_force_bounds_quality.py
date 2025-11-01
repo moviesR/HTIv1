@@ -14,12 +14,11 @@ def test_forces_non_negative_and_finite():
     """DmControlEnv forces must be non-negative and finite."""
     cfg = load_system_slice("configs/system_slice.yaml")
     cfg.env.backend = "DmControlEnv"
-    cfg.env.fail_fast = False  # Allow fallback for test
 
-    env = load_from_config(cfg)
-
-    if type(env).__name__ != "DmControlEnv":
-        pytest.skip("DmControlEnv not available (asset missing or load failed)")
+    try:
+        env = load_from_config(cfg)
+    except FileNotFoundError:
+        pytest.skip("DmControlEnv assets not available")
 
     obs = env.reset(seed=42)
 
@@ -76,12 +75,11 @@ def test_forces_are_zero_in_free_space():
     """When EE is in free space (not touching table), forces should be ~0."""
     cfg = load_system_slice("configs/system_slice.yaml")
     cfg.env.backend = "DmControlEnv"
-    cfg.env.fail_fast = False
 
-    env = load_from_config(cfg)
-
-    if type(env).__name__ != "DmControlEnv":
-        pytest.skip("DmControlEnv not available")
+    try:
+        env = load_from_config(cfg)
+    except FileNotFoundError:
+        pytest.skip("DmControlEnv assets not available")
 
     obs = env.reset(seed=42)
 

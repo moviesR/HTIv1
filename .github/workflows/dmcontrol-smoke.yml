@@ -19,7 +19,6 @@ jobs:
     env:
       MUJOCO_GL: egl
       ENV_BACKEND: "DmControlEnv"
-      ENV_FAIL_FAST: "true"
 
     steps:
       - uses: actions/checkout@v4

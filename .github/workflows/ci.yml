@@ -9,6 +9,7 @@ jobs:
     runs-on: ubuntu-22.04
     env:
       MUJOCO_GL: egl      # headless; no rendering in CI
+      ENV_BACKEND: "NullEnv"
       PYTHONDONTWRITEBYTECODE: 1
       PIP_NO_INPUT: 1
     steps:
