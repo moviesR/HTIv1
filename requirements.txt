@@ -9,6 +9,7 @@ numpy>=1.26
 pydantic>=2.8
 jsonschema>=4.23
 pytest>=8.2
+PyYAML>=6.0.1
 
 # ---- Optional (enable later as needed) ----
 # xgboost>=2.0          # M0+ surrogate
