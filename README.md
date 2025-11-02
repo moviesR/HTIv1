@@ -117,6 +117,38 @@ pytest -q --disable-warnings --maxfail=1
 
 ---
 
+## Environment Configuration
+
+### Backend Selection
+
+The system supports two environment backends via `env.backend` in `system_slice.yaml`:
+- **`NullEnv`** (default): Deterministic synthetic environment for CI/tests (no MuJoCo dependency)
+- **`DmControlEnv`**: Real MuJoCo physics using dm_control
+
+**No fallback exists:** When `backend="DmControlEnv"`, the system hard-fails if dm_control or assets are unavailable (RuntimeError or FileNotFoundError). This ensures no silent degradation in production.
+
+### Runtime Override
+
+Override the backend without editing YAML:
+```bash
+export ENV_BACKEND="DmControlEnv"  # Use MuJoCo physics
+python tools/run_pnp_smoke_dm.py
+```
+
+### Success/TTR Detection
+
+Success and Time-to-Result (TTR) use **relative lift detection** from initial pose `z0`:
+- `success = (z_current >= z0 + dz) and sustained for ≥0.20s`
+- Compatible with any starting height (NullEnv at z=0.02m, DmControlEnv at z=0.72m, etc.)
+
+### Contact Forces
+
+Fn/Ft are bounded (`max(0.0, ...)`) and labeled:
+- EventPack includes `signals_quality.contacts = "placeholder"` until UR5 contact sensors are wired
+- Once UR5 assets are integrated, this flag changes to `"measured"`
+
+---
+
 ## M0 System Slice (SSOT)
 
 All runs are governed by `configs/system_slice.yaml`. Change it, or it didn’t happen.
