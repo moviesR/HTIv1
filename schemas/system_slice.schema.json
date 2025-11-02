@@ -1,0 +1,127 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "HTI System Slice",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["engine", "physics", "seeds", "bands", "caps", "tasks", "probes", "randomization", "acceptance"],
+  "properties": {
+    "engine": {
+      "type": "string",
+      "enum": ["mujoco-3.3.6"]
+    },
+    "physics": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["dt", "substeps", "solver", "tol", "contact_margin"],
+      "properties": {
+        "dt": { "type": "number" },
+        "substeps": { "type": "integer", "minimum": 1 },
+        "solver": { "type": "string" },
+        "tol": { "type": "number" },
+        "contact_margin": { "type": "number" }
+      }
+    },
+    "seeds": {
+      "type": "object",
+      "required": ["sim_seed", "config_hash", "physics_hash"],
+      "properties": {
+        "sim_seed": { "type": "integer" },
+        "config_hash": { "type": "string" },
+        "physics_hash": { "type": "string" }
+      },
+      "additionalProperties": true
+    },
+    "robot": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "bands": {
+      "type": "object",
+      "required": ["reflex_hz", "control_hz", "predict_hz", "semantics_hz"],
+      "properties": {
+        "reflex_hz": { "type": "number" },
+        "control_hz": { "type": "number" },
+        "predict_hz": { "type": ["string", "number"] },
+        "semantics_hz": { "type": ["string", "number"] }
+      },
+      "additionalProperties": true
+    },
+    "caps": {
+      "type": "object",
+      "required": ["v_mps", "a_mps2", "jerk_mps3", "fn_N", "tau_Nm"],
+      "properties": {
+        "v_mps": { "type": "number" },
+        "a_mps2": { "type": "number" },
+        "jerk_mps3": { "type": "number" },
+        "fn_N": { "type": "number" },
+        "tau_Nm": { "type": "number" }
+      },
+      "additionalProperties": true
+    },
+    "tasks": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": true
+    },
+    "sensors": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "logging": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "probes": {
+      "type": "object",
+      "required": ["ttl_ms", "max_before_action", "refractory_ms", "dither_hz"],
+      "properties": {
+        "ttl_ms": { "type": "integer" },
+        "max_before_action": { "type": "integer" },
+        "refractory_ms": { "type": "integer" },
+        "dither_hz": {
+          "type": "array",
+          "items": { "type": "number" },
+          "minItems": 2,
+          "maxItems": 2
+        }
+      },
+      "additionalProperties": true
+    },
+    "randomization": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "acceptance": {
+      "type": "object",
+      "required": ["timing"],
+      "properties": {
+        "timing": {
+          "type": "object",
+          "required": ["soak_min", "p99_under_caps", "missed_cycles"],
+          "properties": {
+            "soak_min": { "type": "integer" },
+            "p99_under_caps": { "type": "boolean" },
+            "missed_cycles": { "type": "integer" }
+          }
+        }
+      },
+      "additionalProperties": true
+    },
+    "risk": {
+      "type": "object",
+      "properties": {
+        "tau": { "type": "number" },
+        "uncertainty_stub": { "type": "number" }
+      },
+      "additionalProperties": true
+    },
+    "env": {
+      "type": "object",
+      "properties": {
+        "backend": { "type": "string", "enum": ["NullEnv", "DmControlEnv"] },
+        "fail_fast": { "type": "boolean" }
+      },
+      "additionalProperties": true
+    }
+  }
+}

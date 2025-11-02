@@ -1,0 +1,52 @@
+name: dm_control smoke (manual)
+
+on:
+  workflow_dispatch:
+    inputs:
+      duration:
+        description: "Run duration (seconds)"
+        default: "3.0"
+        required: false
+      risk_demo:
+        description: "Enable --risk-demo mode"
+        type: boolean
+        default: false
+        required: false
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    env:
+      MUJOCO_GL: egl
+      ENV_BACKEND: "DmControlEnv"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install -q -r requirements.txt
+
+      - name: Try to install dm-control
+        run: |
+          pip install dm-control || echo "dm-control install failed (expected on some runners)"
+
+      - name: Validate system slice (strict)
+        run: |
+          python tools/validate_system_slice.py configs/system_slice.yaml schemas/system_slice.schema.json --strict
+
+      - name: Run dm_control smoke test
+        run: |
+          if [ "${{ github.event.inputs.risk_demo }}" == "true" ]; then
+            python tools/run_pnp_smoke_dm.py --risk-demo --duration ${{ github.event.inputs.duration }}
+          else
+            python tools/run_pnp_smoke_dm.py --duration ${{ github.event.inputs.duration }}
+          fi
+
+      - name: Run pytest
+        run: |
+          pytest -q
